@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "dfx": "0.11.2",
+  "canisters": {
+    "CrypchatBackend_backend": {
+      "type": "motoko",
+      "main": "src/CrypchatBackend_backend/main.mo"
+    },
+    "CrypchatBackend_frontend": {
+      "type": "assets",
+      "source": [
+        "src/CrypchatBackend_frontend/assets"
+      ],
+      "dependencies": [
+        "CrypchatBackend_backend"
+      ]
+    }
+  },
+  "defaults": {
+    "build": {
+      "packtool": "",
+      "args": ""
+    }
+  },
+  "networks": {
+    "local": {
+      "bind": "127.0.0.1:8000",
+      "type": "ephemeral"
+    }
+  }
+}
