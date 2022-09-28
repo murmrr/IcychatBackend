@@ -210,7 +210,8 @@ actor Backend {
                 for (otherCurrentChat in otherChats.vals()) {
                   func f(p : Principal) : Bool = Principal.equal(p, msg.caller);
                   if (Array.find(otherCurrentChat.users, f) != null) {
-                    let message : Message.Message = Message.construct(msg.caller, content);
+                    let seed : Blob = await Random.blob();
+                    let message : Message.Message = Message.construct(seed, msg.caller, content);
 
                     myCurrentChat.messages.add(message);
 
