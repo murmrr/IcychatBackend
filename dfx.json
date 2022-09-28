@@ -2,18 +2,9 @@
   "version": 1,
   "dfx": "0.11.2",
   "canisters": {
-    "CrypchatBackend_backend": {
+    "backend": {
       "type": "motoko",
-      "main": "src/CrypchatBackend_backend/main.mo"
-    },
-    "CrypchatBackend_frontend": {
-      "type": "assets",
-      "source": [
-        "src/CrypchatBackend_frontend/assets"
-      ],
-      "dependencies": [
-        "CrypchatBackend_backend"
-      ]
+      "main": "src/CrypchatBackend_backend/actors/Backend.mo"
     }
   },
   "defaults": {
