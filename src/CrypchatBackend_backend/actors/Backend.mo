@@ -91,7 +91,7 @@ actor Backend {
     };
   };
 
-  public shared query(msg) func getMyChat(id : Nat8) : async Result.Result<SharedChat.SharedChat, GetMyChatError.GetMyChatError> {
+  public shared query(msg) func getMyChat(id : Nat) : async Result.Result<SharedChat.SharedChat, GetMyChatError.GetMyChatError> {
     let value : ?Buffer.Buffer<Chat.Chat> = userToChats.get(msg.caller);
     switch (value) {
       case null {

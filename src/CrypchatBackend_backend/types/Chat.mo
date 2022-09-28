@@ -5,16 +5,18 @@ import Message "Message";
 
 module {
   public type Chat = {
-    id : Nat8;
+    id : Nat;
     users : [Principal];
     messages : Buffer.Buffer<Message.Message>;
   };
 
+  let ID_P : Nat8 =  64;
+
   public func construct(seed : Blob, users0 : [Principal]) : Chat {
-      return {
-        id = Random.byteFrom(seed);
-        users = users0;
-        messages = Buffer.Buffer<Message.Message>(0);
-      };
+    return {
+      id = Random.rangeFrom(ID_P, seed);
+      users = users0;
+      messages = Buffer.Buffer<Message.Message>(0);
+    };
   };
 };

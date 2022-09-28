@@ -6,7 +6,7 @@ import Chat "Chat";
 
 module {
   public type ChatHeader = {
-    id : Nat8;
+    id : Nat;
     otherUsers : [Principal];
   };
 
