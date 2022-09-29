@@ -21,6 +21,7 @@ import SharedChat "../types/SharedChat";
 import GetMyProfileError "../types/GetMyProfileError";
 import ChatHeader "../types/ChatHeader";
 import GetMyChatError "../types/GetMyChatError";
+import GetAllUsersError "../types/GetAllUsersError";
 
 actor Backend {
 
@@ -43,16 +44,24 @@ actor Backend {
         let profile : Profile.Profile = Profile.update(initialProfile, profileUpdate);
         userToProfile.put(thePrincipal, profile);
         userToChats.put(thePrincipal, Buffer.Buffer<Chat.Chat>(0));
+        return #ok();
       };
     };
-
-    return #ok();
   };
 
-  public shared query(msg) func getAllUsers() : async [Principal] {
-    let allUsers : [Principal] = Iter.toArray(userToProfile.keys());
-    func f(p : Principal) : Bool = not Principal.equal(p, msg.caller);
-    return Array.filter(allUsers, f);
+  public shared query(msg) func getAllUsers() : async Result.Result<[Principal], GetAllUsersError.GetAllUsersError> {
+    let chats : ?Buffer.Buffer<Chat.Chat> = userToChats.get(msg.caller);
+    switch (chats) {
+      case (?chats) {
+        let allUsers : [Principal] = Iter.toArray(userToProfile.keys());
+        func f(p : Principal) : Bool = not Principal.equal(p, msg.caller);
+        return return #ok(Array.filter(allUsers, f));
+      };
+
+      case null {
+        return #err(#UserNotFound);
+      };
+    };
   };
 
   public shared query func getProfile(userPrincipal : Principal) : async Result.Result<Profile.Profile, GetProfileError.GetProfileError> {
@@ -132,13 +141,12 @@ actor Backend {
         let profile : Profile.Profile = Profile.update(initialProfile, profileUpdate);
         userToProfile.put(msg.caller, profile);
         userToChats.put(msg.caller, Buffer.Buffer<Chat.Chat>(0));
+        return #ok();
       };
     };
-
-    return #ok();
   };
 
-  public shared(msg) func updateProfile(profileUpdate : ProfileUpdate.ProfileUpdate) : async Result.Result<(), UpdateProfileError.UpdateProfileError> {
+  public shared(msg) func updateProfile(profileUpdate : ProfileUpdate.ProfileUpdate) : async Result.Result<Profile.Profile, UpdateProfileError.UpdateProfileError> {
     let value : ?Profile.Profile = userToProfile.get(msg.caller);
     switch (value) {
       case null {
@@ -148,11 +156,9 @@ actor Backend {
       case (?value) {
         let profile : Profile.Profile = Profile.update(value, profileUpdate);
         userToProfile.put(msg.caller, profile);
-        return #ok();
+        return #ok(profile);
       };
     };
-
-    return #ok();
   };
 
   public shared(msg) func createChat(otherUser : Principal) : async Result.Result<(), CreateChatError.CreateChatError> {
