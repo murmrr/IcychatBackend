@@ -4,6 +4,7 @@ import Principal "mo:base/Principal";
 import Array "mo:base/Array";
 import Buffer "mo:base/Buffer";
 import Random "mo:base/Random";
+import Iter "mo:base/Iter";
 
 import RegisterError "../types/RegisterError";
 import ProfileUpdate "../types/ProfileUpdate";
@@ -46,6 +47,12 @@ actor Backend {
     };
 
     return #ok();
+  };
+
+  public shared query(msg) func getAllUsers() : async [Principal] {
+    let allUsers : [Principal] = Iter.toArray(userToProfile.keys());
+    func f(p : Principal) : Bool = not Principal.equal(p, msg.caller);
+    return Array.filter(allUsers, f);
   };
 
   public shared query func getProfile(userPrincipal : Principal) : async Result.Result<Profile.Profile, GetProfileError.GetProfileError> {
@@ -189,7 +196,7 @@ actor Backend {
     };
   };
 
-  public shared(msg) func sendMessage(recipient : Principal, content : MessageContent.MessageContent) : async Result.Result<(), SendMessageError.SendMessageError> {
+  public shared(msg) func sendMessage(id : Nat, content : MessageContent.MessageContent) : async Result.Result<SharedChat.SharedChat, SendMessageError.SendMessageError> {
     let myChats : ?Buffer.Buffer<Chat.Chat> = userToChats.get(msg.caller);
     switch (myChats) {
       case null {
@@ -198,31 +205,16 @@ actor Backend {
 
       case (?myChats) {
         for (myCurrentChat in myChats.vals()) {
-          func f(p : Principal) : Bool = Principal.equal(p, recipient);
-          if (Array.find(myCurrentChat.users, f) != null) {
-            let otherChats : ?Buffer.Buffer<Chat.Chat> = userToChats.get(recipient);
-            switch (otherChats) {
-              case null {
-                return #err(#RecipientNotFound);
-              };
+          if (myCurrentChat.id == id) {
+            let seed : Blob = await Random.blob();
+            let message : Message.Message = Message.construct(seed, msg.caller, content);
 
-              case (?otherChats) {
-                for (otherCurrentChat in otherChats.vals()) {
-                  func f(p : Principal) : Bool = Principal.equal(p, msg.caller);
-                  if (Array.find(otherCurrentChat.users, f) != null) {
-                    let seed : Blob = await Random.blob();
-                    let message : Message.Message = Message.construct(seed, msg.caller, content);
+            myCurrentChat.messages.add(message);
 
-                    myCurrentChat.messages.add(message);
-
-                    return #ok();
-                  };
-                };
-              };
-            };
+            return #ok(SharedChat.construct(msg.caller, myCurrentChat));
           };
         };
-        return #err(#RecipientNotFound);
+        return #err(#IdNotFound);
       };
     };
   };
