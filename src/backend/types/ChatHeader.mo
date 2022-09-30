@@ -9,15 +9,23 @@ module {
   public type ChatHeader = {
     id : Nat;
     otherUsers : [Principal];
-    lastMessage : Message.Message;
+    lastMessage : ?Message.Message;
   };
 
   public func construct(callerPrincipal : Principal, chat0 : Chat.Chat) : ChatHeader {
     func f(p : Principal) : Bool = not Principal.equal(p, callerPrincipal);
-    return {
-      id = chat0.id;
-      otherUsers = Array.filter(chat0.users, f);
-      lastMessage = chat0.messages.get(chat0.messages.size() - 1);
+    if (chat0.messages.size() > 0) {
+      return {
+        id = chat0.id;
+        otherUsers = Array.filter(chat0.users, f);
+        lastMessage = ?chat0.messages.get(chat0.messages.size() - 1);
+      };
+    } else {
+      return {
+        id = chat0.id;
+        otherUsers = Array.filter(chat0.users, f);
+        lastMessage = null;
+      };
     };
   };  
 };

@@ -4,7 +4,7 @@
   "canisters": {
     "backend": {
       "type": "motoko",
-      "main": "src/CrypchatBackend_backend/actors/Backend.mo"
+      "main": "src/backend/actors/Backend.mo"
     }
   },
   "defaults": {
