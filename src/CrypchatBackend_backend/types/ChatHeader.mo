@@ -3,11 +3,13 @@ import Array "mo:base/Array";
 import Principal "mo:base/Principal";
 
 import Chat "Chat";
+import Message "Message";
 
 module {
   public type ChatHeader = {
     id : Nat;
     otherUsers : [Principal];
+    lastMessage : Message.Message;
   };
 
   public func construct(callerPrincipal : Principal, chat0 : Chat.Chat) : ChatHeader {
@@ -15,6 +17,7 @@ module {
     return {
       id = chat0.id;
       otherUsers = Array.filter(chat0.users, f);
+      lastMessage = chat0.messages.get(chat0.messages.size() - 1);
     };
   };  
 };
