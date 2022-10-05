@@ -73,7 +73,7 @@ actor Backend {
             };
           };
         };
-        return #ok(Array.filter(allUsers, f2));
+        return #ok(Array.filter(withoutCaller, f2));
       };
 
       case null {
