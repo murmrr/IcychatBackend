@@ -23,6 +23,7 @@ import GetMyProfileError "../types/GetMyProfileError";
 import ChatHeader "../types/ChatHeader";
 import GetMyChatError "../types/GetMyChatError";
 import GetUsersError "../types/GetUsersError";
+import AddToChatError "../types/AddToChatError";
 
 actor Backend {
 
@@ -195,16 +196,20 @@ actor Backend {
 
           case (?otherChats) {
             for (chat in myChats.vals()) {
-              func f(p : Principal) : Bool = Principal.equal(p, otherUser);
-              if (Array.find(chat.users, f) != null) {
-                return #err(#ChatAlreadyExists);
-              };
+              if (chat.users.size() == 2) {
+                func f(p : Principal) : Bool = Principal.equal(p, otherUser);
+                if (Array.find(chat.users.toArray(), f) != null) {
+                  return #err(#ChatAlreadyExists);
+                };
+              }
             };
             for (chat in otherChats.vals()) {
-              func f(p : Principal) : Bool = Principal.equal(p, msg.caller);
-              if (Array.find(chat.users, f) != null) {
-                return #err(#ChatAlreadyExists);
-              };
+              if (chat.users.size() == 2) {
+                func f(p : Principal) : Bool = Principal.equal(p, msg.caller);
+                if (Array.find(chat.users.toArray(), f) != null) {
+                  return #err(#ChatAlreadyExists);
+                };
+              }
             };
 
             let seed : Blob = await Random.blob();
@@ -214,6 +219,43 @@ actor Backend {
             otherChats.add(chat);
 
             return #ok();
+          };
+        };
+      };
+    };
+  };
+
+  public shared(msg) func addToChat(id : Nat, otherUser : Principal) : async Result.Result<(), AddToChatError.AddToChatError> {
+    let myChats : ?Buffer.Buffer<Chat.Chat> = userToChats.get(msg.caller);
+    switch (myChats) {
+      case null {
+        return #err(#UserNotFound);
+      };
+
+      case (?myChats) {
+        let otherChats : ?Buffer.Buffer<Chat.Chat> = userToChats.get(otherUser);
+        switch (otherChats) {
+          case null {
+            return #err(#UserNotFound);
+          };
+
+          case (?otherChats) {
+
+            for (myCurrentChat in myChats.vals()) {
+              if (myCurrentChat.id == id) {
+
+                func f(p : Principal) : Bool = Principal.equal(p, otherUser);
+                if (Array.find(myCurrentChat.users.toArray(), f) != null) {
+                  return #err(#UserAlreadyInChat);
+                };
+
+                myCurrentChat.users.add(otherUser);
+                otherChats.add(myCurrentChat);
+
+                return #ok();
+              };
+            };
+            return #err(#IdNotFound);
           };
         };
       };

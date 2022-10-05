@@ -17,13 +17,13 @@ module {
     if (chat0.messages.size() > 0) {
       return {
         id = chat0.id;
-        otherUsers = Array.filter(chat0.users, f);
+        otherUsers = Array.filter(chat0.users.toArray(), f);
         lastMessage = ?chat0.messages.get(chat0.messages.size() - 1);
       };
     } else {
       return {
         id = chat0.id;
-        otherUsers = Array.filter(chat0.users, f);
+        otherUsers = Array.filter(chat0.users.toArray(), f);
         lastMessage = null;
       };
     };
