@@ -1,5 +1,5 @@
 module {
-  public type GetAllUsersError = {
+  public type GetUsersError = {
     #UserNotFound;
   };
 };

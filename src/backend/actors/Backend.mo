@@ -5,6 +5,7 @@ import Array "mo:base/Array";
 import Buffer "mo:base/Buffer";
 import Random "mo:base/Random";
 import Iter "mo:base/Iter";
+import Text "mo:base/Text";
 
 import RegisterError "../types/RegisterError";
 import ProfileUpdate "../types/ProfileUpdate";
@@ -21,7 +22,7 @@ import SharedChat "../types/SharedChat";
 import GetMyProfileError "../types/GetMyProfileError";
 import ChatHeader "../types/ChatHeader";
 import GetMyChatError "../types/GetMyChatError";
-import GetAllUsersError "../types/GetAllUsersError";
+import GetUsersError "../types/GetUsersError";
 
 actor Backend {
 
@@ -49,13 +50,30 @@ actor Backend {
     };
   };
 
-  public shared query(msg) func getAllUsers() : async Result.Result<[Principal], GetAllUsersError.GetAllUsersError> {
+  public shared query(msg) func getUsers(searchQuery : Text) : async Result.Result<[Principal], GetUsersError.GetUsersError> {
     let chats : ?Buffer.Buffer<Chat.Chat> = userToChats.get(msg.caller);
     switch (chats) {
       case (?chats) {
         let allUsers : [Principal] = Iter.toArray(userToProfile.keys());
-        func f(p : Principal) : Bool = not Principal.equal(p, msg.caller);
-        return return #ok(Array.filter(allUsers, f));
+
+        func f1(p : Principal) : Bool = not Principal.equal(p, msg.caller);
+        let withoutCaller : [Principal] = Array.filter(allUsers, f1);
+
+        let searchPattern : Text.Pattern = #text(searchQuery);
+        func f2(p : Principal) : Bool = 
+        switch (userToProfile.get(p)) {
+          case null {
+            return false
+          };
+          case (?profile) {
+            if (Text.contains(profile.username, searchPattern)) {
+              return true;
+            } else {
+              return false;
+            };
+          };
+        };
+        return #ok(Array.filter(allUsers, f2));
       };
 
       case null {
