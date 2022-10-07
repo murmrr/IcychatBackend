@@ -27,34 +27,20 @@ import AddToChatError "../types/AddToChatError";
 
 actor Backend {
 
+  var allChats : Buffer.Buffer<Chat.Chat> = Buffer.Buffer(0);
+  var userToPublicKey : HashMap.HashMap<Principal, Text> = HashMap.HashMap(0, Principal.equal, Principal.hash);
   var userToProfile : HashMap.HashMap<Principal, Profile.Profile> = HashMap.HashMap(0, Principal.equal, Principal.hash);
   var userToChats : HashMap.HashMap<Principal, Buffer.Buffer<Chat.Chat>> = HashMap.HashMap(0, Principal.equal, Principal.hash);
-
-  public shared(msg) func registerHelper(thePrincipal : Principal, profileUpdate : ProfileUpdate.ProfileUpdate) : async Result.Result<(), RegisterError.RegisterError> {
-    if (not ProfileUpdate.validate(profileUpdate)) {
-      return #err(#InvalidProfile);
-    };
-
-    let value : ?Profile.Profile = userToProfile.get(thePrincipal);
-    switch (value) {
-      case (?value) {
-        return #err(#AlreadyRegistered);
-      };
-
-      case null {
-        let initialProfile : Profile.Profile = Profile.getDefault(thePrincipal);
-        let profile : Profile.Profile = Profile.update(initialProfile, profileUpdate);
-        userToProfile.put(thePrincipal, profile);
-        userToChats.put(thePrincipal, Buffer.Buffer<Chat.Chat>(0));
-        return #ok();
-      };
-    };
-  };
 
   public shared query(msg) func getUsers(searchQuery : Text) : async Result.Result<[Principal], GetUsersError.GetUsersError> {
     let chats : ?Buffer.Buffer<Chat.Chat> = userToChats.get(msg.caller);
     switch (chats) {
       case (?chats) {
+        
+        if (searchQuery == "") {
+          return #ok([]);
+        };
+
         let allUsers : [Principal] = Iter.toArray(userToProfile.keys());
 
         func f1(p : Principal) : Bool = not Principal.equal(p, msg.caller);
@@ -74,7 +60,9 @@ actor Backend {
             };
           };
         };
-        return #ok(Array.filter(withoutCaller, f2));
+        let filtered : [Principal] = Array.filter(withoutCaller, f2);
+
+        return #ok(filtered);
       };
 
       case null {
@@ -144,7 +132,7 @@ actor Backend {
     };
   };
 
-  public shared(msg) func register(profileUpdate : ProfileUpdate.ProfileUpdate) : async Result.Result<(), RegisterError.RegisterError> {
+  public shared(msg) func register(profileUpdate : ProfileUpdate.ProfileUpdate, publicKey : Text) : async Result.Result<(), RegisterError.RegisterError> {
     if (not ProfileUpdate.validate(profileUpdate)) {
       return #err(#InvalidProfile);
     };
@@ -158,6 +146,7 @@ actor Backend {
       case null {
         let initialProfile : Profile.Profile = Profile.getDefault(msg.caller);
         let profile : Profile.Profile = Profile.update(initialProfile, profileUpdate);
+        userToPublicKey.put(msg.caller, publicKey);
         userToProfile.put(msg.caller, profile);
         userToChats.put(msg.caller, Buffer.Buffer<Chat.Chat>(0));
         return #ok();
@@ -214,6 +203,8 @@ actor Backend {
 
             let seed : Blob = await Random.blob();
             let chat : Chat.Chat = Chat.construct(seed, [msg.caller, otherUser]);
+
+            allChats.add(chat);
 
             myChats.add(chat);
             otherChats.add(chat);
