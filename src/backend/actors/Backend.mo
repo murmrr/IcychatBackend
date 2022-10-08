@@ -147,24 +147,6 @@ actor Backend {
     };
   };
 
-  public shared query(msg) func getMyChatKey(id : Nat) : async Result.Result<Text, GetMyChatKeyError.GetMyChatKeyError> {
-    let value : ?Buffer.Buffer<Chat.Chat> = userToChats.get(msg.caller);
-    switch (value) {
-      case null {
-        return #err(#UserNotFound);
-      };
-
-      case (?value) {
-        for (chat in value.vals()) {
-          if (chat.id == id) {
-            return #ok(SharedChat.construct(msg.caller, chat).key);
-          };
-        };
-        return #err(#IdNotFound);
-      };
-    };
-  };
-
   public shared(msg) func register(profileUpdate : ProfileUpdate.ProfileUpdate, publicKey : Text) : async Result.Result<(), RegisterError.RegisterError> {
     if (not ProfileUpdate.validate(profileUpdate)) {
       return #err(#InvalidProfile);
