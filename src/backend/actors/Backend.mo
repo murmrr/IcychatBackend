@@ -24,6 +24,8 @@ import ChatHeader "../types/ChatHeader";
 import GetMyChatError "../types/GetMyChatError";
 import GetUsersError "../types/GetUsersError";
 import AddToChatError "../types/AddToChatError";
+import GetPublicKeyError "../types/GetPublicKeyError";
+import GetMyChatKeyError "../types/GetMyChatKeyError";
 
 actor Backend {
 
@@ -69,6 +71,19 @@ actor Backend {
         return #err(#UserNotFound);
       };
     };
+  };
+
+  public shared query func getPublicKey(userPrincipal : Principal) : async Result.Result<Text, GetPublicKeyError.GetPublicKeyError> {
+    let value : ?Text.Text = userToPublicKey.get(userPrincipal);
+    switch (value) {
+      case null {
+        return #err(#UserNotFound);
+      };
+
+      case (?value) {
+        return #ok(value);
+      };
+    }
   };
 
   public shared query func getProfile(userPrincipal : Principal) : async Result.Result<Profile.Profile, GetProfileError.GetProfileError> {
@@ -132,6 +147,24 @@ actor Backend {
     };
   };
 
+  public shared query(msg) func getMyChatKey(id : Nat) : async Result.Result<Text, GetMyChatKeyError.GetMyChatKeyError> {
+    let value : ?Buffer.Buffer<Chat.Chat> = userToChats.get(msg.caller);
+    switch (value) {
+      case null {
+        return #err(#UserNotFound);
+      };
+
+      case (?value) {
+        for (chat in value.vals()) {
+          if (chat.id == id) {
+            return #ok(SharedChat.construct(msg.caller, chat).key);
+          };
+        };
+        return #err(#IdNotFound);
+      };
+    };
+  };
+
   public shared(msg) func register(profileUpdate : ProfileUpdate.ProfileUpdate, publicKey : Text) : async Result.Result<(), RegisterError.RegisterError> {
     if (not ProfileUpdate.validate(profileUpdate)) {
       return #err(#InvalidProfile);
@@ -169,7 +202,7 @@ actor Backend {
     };
   };
 
-  public shared(msg) func createChat(otherUser : Principal) : async Result.Result<(), CreateChatError.CreateChatError> {
+  public shared(msg) func createChat(otherUser : Principal, myKey : Text, otherUserKey : Text) : async Result.Result<(), CreateChatError.CreateChatError> {
     let myChats : ?Buffer.Buffer<Chat.Chat> = userToChats.get(msg.caller);
     switch (myChats) {
       case null {
@@ -202,7 +235,7 @@ actor Backend {
             };
 
             let seed : Blob = await Random.blob();
-            let chat : Chat.Chat = Chat.construct(seed, [msg.caller, otherUser]);
+            let chat : Chat.Chat = Chat.construct(seed, msg.caller, otherUser, myKey, otherUserKey);
 
             allChats.add(chat);
 
@@ -216,7 +249,7 @@ actor Backend {
     };
   };
 
-  public shared(msg) func addToChat(id : Nat, otherUser : Principal) : async Result.Result<(), AddToChatError.AddToChatError> {
+  public shared(msg) func addToChat(id : Nat, otherUser : Principal, otherUserKey : Text) : async Result.Result<(), AddToChatError.AddToChatError> {
     let myChats : ?Buffer.Buffer<Chat.Chat> = userToChats.get(msg.caller);
     switch (myChats) {
       case null {
@@ -240,6 +273,7 @@ actor Backend {
                   return #err(#UserAlreadyInChat);
                 };
 
+                myCurrentChat.keys.put(otherUser, otherUserKey);
                 myCurrentChat.users.add(otherUser);
                 otherChats.add(myCurrentChat);
 
