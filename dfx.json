@@ -2,9 +2,9 @@
   "version": 1,
   "dfx": "0.11.2",
   "canisters": {
-    "backend": {
+    "CryptchatBackend": {
       "type": "motoko",
-      "main": "src/backend/actors/Backend.mo"
+      "main": "src/CryptchatBackend/actors/CryptchatBackend.mo"
     }
   },
   "defaults": {

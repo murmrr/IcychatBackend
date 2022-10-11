@@ -27,7 +27,7 @@ import AddToChatError "../types/AddToChatError";
 import GetPublicKeyError "../types/GetPublicKeyError";
 import GetMyChatKeyError "../types/GetMyChatKeyError";
 
-actor Backend {
+actor CryptchatBackend {
 
   var allChats : Buffer.Buffer<Chat.Chat> = Buffer.Buffer(0);
   var userToPublicKey : HashMap.HashMap<Principal, Text> = HashMap.HashMap(0, Principal.equal, Principal.hash);
