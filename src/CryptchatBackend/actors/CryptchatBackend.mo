@@ -10,7 +10,6 @@ import Text "mo:base/Text";
 import RegisterError "../types/RegisterError";
 import ProfileUpdate "../types/ProfileUpdate";
 import Profile "../types/Profile";
-import UpdateProfileError "../types/UpdateProfileError";
 import CreateChatError "../types/CreateChatError";
 import Chat "../types/Chat";
 import GetProfileError "../types/GetProfileError";
@@ -165,21 +164,6 @@ actor CryptchatBackend {
         userToProfile.put(msg.caller, profile);
         userToChats.put(msg.caller, Buffer.Buffer<Chat.Chat>(0));
         return #ok();
-      };
-    };
-  };
-
-  public shared(msg) func updateProfile(profileUpdate : ProfileUpdate.ProfileUpdate) : async Result.Result<Profile.Profile, UpdateProfileError.UpdateProfileError> {
-    let value : ?Profile.Profile = userToProfile.get(msg.caller);
-    switch (value) {
-      case null {
-        return #err(#ProfileNotFound);
-      };
-
-      case (?value) {
-        let profile : Profile.Profile = Profile.update(value, profileUpdate);
-        userToProfile.put(msg.caller, profile);
-        return #ok(profile);
       };
     };
   };
