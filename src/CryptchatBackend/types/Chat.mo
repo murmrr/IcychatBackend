@@ -13,7 +13,7 @@ module {
     messages : Buffer.Buffer<Message.Message>;
   };
 
-  let ID_P : Nat8 =  64;
+  let ID_P : Nat8 = 64;
 
   public func construct(seed : Blob, user1 : Principal, user2 : Principal, user1Key : Text, user2Key : Text) : Chat {
     let users0Temp : Buffer.Buffer<Principal> = Buffer.Buffer<Principal>(0);

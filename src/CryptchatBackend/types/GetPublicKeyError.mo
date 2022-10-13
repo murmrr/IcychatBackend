@@ -1,5 +1,5 @@
 module {
   public type GetPublicKeyError = {
-    #UserNotFound
+    #UserNotFound;
   };
 };

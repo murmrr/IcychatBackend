@@ -11,7 +11,7 @@ module {
     content : MessageContent.MessageContent;
   };
 
-  let ID_P : Nat8 =  64;
+  let ID_P : Nat8 = 64;
 
   public func construct(seed : Blob, sender0 : Principal, content0 : MessageContent.MessageContent) : Message {
     return {

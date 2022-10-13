@@ -3,4 +3,4 @@ module {
     #UserNotFound;
     #ChatAlreadyExists;
   };
-}
+};

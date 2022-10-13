@@ -9,8 +9,7 @@
   },
   "defaults": {
     "build": {
-      "packtool": "",
-      "args": ""
+      "packtool": "vessel sources"
     }
   },
   "networks": {

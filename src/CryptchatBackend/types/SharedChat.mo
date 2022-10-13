@@ -17,5 +17,5 @@ module {
       otherUsers = Array.filter(chat0.users.toArray(), f);
       messages = chat0.messages.toArray();
     };
-  };  
+  };
 };
