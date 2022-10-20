@@ -38,7 +38,7 @@ import HttpTypes "../types/HttpTypes";
 import SetPushTokenError "../types/SetPushTokenError";
 import LeaveChatError "../types/LeaveChatError";
 
-actor CryptchatBackend {
+actor Icychat {
 
   var allChats : Buffer.Buffer<Chat.Chat> = Buffer.Buffer(0);
   var userToPushToken : HashMap.HashMap<Principal, Text> = HashMap.HashMap(0, Principal.equal, Principal.hash);
