@@ -36,6 +36,7 @@ import GetPublicKeyError "../types/GetPublicKeyError";
 import GetMyChatKeyError "../types/GetMyChatKeyError";
 import HttpTypes "../types/HttpTypes";
 import SetPushTokenError "../types/SetPushTokenError";
+import LeaveChatError "../types/LeaveChatError";
 
 actor CryptchatBackend {
 
@@ -313,6 +314,81 @@ actor CryptchatBackend {
             return #ok();
           };
         };
+      };
+    };
+  };
+
+  public shared (msg) func leaveChat(id : Nat) : async Result.Result<(), LeaveChatError.LeaveChatError> {
+    switch (userToChats.get(msg.caller)) {
+      case null {
+        return #err(#UserNotFound);
+      };
+
+      case (?chats) {
+        for (chat in chats.vals()) {
+          if (chat.id == id) {
+            if (chat.users.size() > 2) {
+              chat.keys.delete(msg.caller);
+
+              let newUsers : Buffer.Buffer<Principal> = Buffer.Buffer(0);
+              for (user in chat.users.vals()) {
+                if (user != msg.caller) {
+                  newUsers.add(user);
+                };
+              };
+              chat.users.clear();
+              chat.users.append(newUsers);
+            } else {
+              if (chat.users.get(0) == msg.caller) {
+                switch (userToChats.get(chat.users.get(1))) {
+                  case null {
+                    return #err(#UserNotFound);
+                  };
+
+                  case (?otherChats) {
+                    let otherNewChats : Buffer.Buffer<Chat.Chat> = Buffer.Buffer(0);
+                    for (chat in otherChats.vals()) {
+                      if (chat.id != id) {
+                        otherNewChats.add(chat);
+                      };
+                    };
+                    otherChats.clear();
+                    otherChats.append(otherNewChats);
+                  };
+                };
+              } else {
+                switch (userToChats.get(chat.users.get(0))) {
+                  case null {
+                    return #err(#UserNotFound);
+                  };
+
+                  case (?otherChats) {
+                    let otherNewChats : Buffer.Buffer<Chat.Chat> = Buffer.Buffer(0);
+                    for (chat in otherChats.vals()) {
+                      if (chat.id != id) {
+                        otherNewChats.add(chat);
+                      };
+                    };
+                    otherChats.clear();
+                    otherChats.append(otherNewChats);
+                  };
+                };
+              };
+            };
+          };
+
+          let myNewChats : Buffer.Buffer<Chat.Chat> = Buffer.Buffer(0);
+          for (chat in chats.vals()) {
+            if (chat.id != id) {
+              myNewChats.add(chat);
+            };
+          };
+          chats.clear();
+          chats.append(myNewChats);
+
+          return #ok();
+        };
+        return #err(#IdNotFound);
       };
     };
   };
