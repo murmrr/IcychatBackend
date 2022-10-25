@@ -35,8 +35,9 @@ import AddToChatError "../types/AddToChatError";
 import GetPublicKeyError "../types/GetPublicKeyError";
 import GetMyChatKeyError "../types/GetMyChatKeyError";
 import HttpTypes "../types/HttpTypes";
-import SetPushTokenError "../types/SetPushTokenError";
+import SetMyPushTokenError "../types/SetMyPushTokenError";
 import LeaveChatError "../types/LeaveChatError";
+import GetMyPushTokenError "../types/GetMyPushTokenError";
 
 actor Icychat {
 
@@ -158,7 +159,28 @@ actor Icychat {
     };
   };
 
-  public shared query (msg) func setPushToken(pushToken : Text) : async Result.Result<(), SetPushTokenError.SetPushTokenError> {
+  public shared query (msg) func getMyPushToken() : async Result.Result<Text, GetMyPushTokenError.GetMyPushTokenError> {
+    let value : ?Profile.Profile = userToProfile.get(msg.caller);
+    switch (value) {
+      case null {
+        return #err(#UserNotFound);
+      };
+
+      case (?profile) {
+        switch (userToPushToken.get(msg.caller)) {
+          case null {
+            return #ok("");
+          };
+
+          case (?value) {
+            return #ok(value);
+          };
+        };
+      };
+    };
+  };
+
+  public shared (msg) func setMyPushToken(pushToken : Text) : async Result.Result<(), SetMyPushTokenError.SetMyPushTokenError> {
     let value : ?Profile.Profile = userToProfile.get(msg.caller);
     switch (value) {
       case null {
@@ -446,10 +468,7 @@ actor Icychat {
 
             myCurrentChat.messages.add(message);
 
-            func f(p : Principal) : Bool = not Principal.equal(p, msg.caller);
-            let withoutCaller : [Principal] = Array.filter(myCurrentChat.users.toArray(), f);
-
-            func f1(idx : Nat) : Text = switch (userToProfile.get(withoutCaller[idx])) {
+            func f1(idx : Nat) : Text = switch (userToProfile.get(myCurrentChat.users.toArray()[idx])) {
               case null {
                 return "";
               };
@@ -458,15 +477,16 @@ actor Icychat {
                 return value.username;
               };
             };
-            let usernames : [Text] = Array.tabulate(Iter.size(withoutCaller.vals()), f1);
+            let usernames : [Text] = Array.tabulate(Iter.size(myCurrentChat.users.toArray().vals()), f1);
             let title : Text = Text.join(", ", usernames.vals());
+
+            func f2(p : Principal) : Bool = not Principal.equal(p, msg.caller);
+            let withoutCaller : [Principal] = Array.filter(myCurrentChat.users.toArray(), f2);
 
             let includePlayerIds : Buffer.Buffer<JSON.JSON> = Buffer.Buffer(0);
             for (user in withoutCaller.vals()) {
               switch (userToPushToken.get(user)) {
-                case null {
-
-                };
+                case null {};
 
                 case (?value) {
                   includePlayerIds.add(#String(value));
@@ -480,17 +500,17 @@ actor Icychat {
               { name = "Content-Type"; value = "application/json" },
               {
                 name = "Authorization";
-                value = "Basic NmIxMzEyZGQtNzg3ZS00N2RiLThiNzMtNjdkYWRhNTk0YmVi";
+                value = "Basic MGU0ZTdlNzktMDYxYS00OWMzLWI3ZGUtZTg2MDkxZjYyMzNm";
               },
             ];
 
             let externalId : Text = UUID.toText(await AsyncSource.Source().new());
             let bodyMap : HashMap.HashMap<Text, JSON.JSON> = HashMap.HashMap(0, Text.equal, Text.hash);
-            bodyMap.put("app_id", #String("7be29e7e-2eaa-4528-b074-6861af02d5ee"));
+            bodyMap.put("app_id", #String("983438ea-3272-4813-acc2-6ea134a6f05a"));
             bodyMap.put("external_id", #String(externalId));
             bodyMap.put("include_player_ids", #Array(includePlayerIds.toArray()));
             let contentsMap : HashMap.HashMap<Text, JSON.JSON> = HashMap.HashMap(0, Text.equal, Text.hash);
-            contentsMap.put("en", #String("Test"));
+            contentsMap.put("en", #String("New Message"));
             bodyMap.put("contents", #Object(contentsMap));
             let headingsMap : HashMap.HashMap<Text, JSON.JSON> = HashMap.HashMap(0, Text.equal, Text.hash);
             headingsMap.put("en", #String(title));
