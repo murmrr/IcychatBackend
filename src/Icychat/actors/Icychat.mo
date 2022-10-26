@@ -41,6 +41,9 @@ import GetMyPushTokenError "../types/GetMyPushTokenError";
 
 actor Icychat {
 
+  let ONESIGNAL_APP_ID : Text = "983438ea-3272-4813-acc2-6ea134a6f05a";
+  let ONESIGNAL_REST_API_KEY : Text = "MGU0ZTdlNzktMDYxYS00OWMzLWI3ZGUtZTg2MDkxZjYyMzNm";
+
   var allChats : Buffer.Buffer<Chat.Chat> = Buffer.Buffer(0);
   var userToPushToken : HashMap.HashMap<Principal, Text> = HashMap.HashMap(0, Principal.equal, Principal.hash);
   var userToPublicKey : HashMap.HashMap<Principal, Text> = HashMap.HashMap(0, Principal.equal, Principal.hash);
@@ -477,7 +480,18 @@ actor Icychat {
                 return value.username;
               };
             };
-            let usernames : [Text] = Array.tabulate(Iter.size(myCurrentChat.users.toArray().vals()), f1);
+            var usernames : [Text] = Array.tabulate(Iter.size(myCurrentChat.users.toArray().vals()), f1);
+            if (myCurrentChat.users.size() == 2) {
+              switch (userToProfile.get(msg.caller)) {
+                case null {
+                  return #err(#UserNotFound);
+                };
+
+                case (?value) {
+                  usernames := [value.username];
+                };
+              };
+            };
             let title : Text = Text.join(", ", usernames.vals());
 
             func f2(p : Principal) : Bool = not Principal.equal(p, msg.caller);
@@ -500,13 +514,13 @@ actor Icychat {
               { name = "Content-Type"; value = "application/json" },
               {
                 name = "Authorization";
-                value = "Basic MGU0ZTdlNzktMDYxYS00OWMzLWI3ZGUtZTg2MDkxZjYyMzNm";
+                value = Text.concat("Basic ", ONESIGNAL_REST_API_KEY);
               },
             ];
 
             let externalId : Text = UUID.toText(await AsyncSource.Source().new());
             let bodyMap : HashMap.HashMap<Text, JSON.JSON> = HashMap.HashMap(0, Text.equal, Text.hash);
-            bodyMap.put("app_id", #String("983438ea-3272-4813-acc2-6ea134a6f05a"));
+            bodyMap.put("app_id", #String(ONESIGNAL_APP_ID));
             bodyMap.put("external_id", #String(externalId));
             bodyMap.put("include_player_ids", #Array(includePlayerIds.toArray()));
             let contentsMap : HashMap.HashMap<Text, JSON.JSON> = HashMap.HashMap(0, Text.equal, Text.hash);
