@@ -38,6 +38,7 @@ import HttpTypes "../types/HttpTypes";
 import SetMyPushTokenError "../types/SetMyPushTokenError";
 import LeaveChatError "../types/LeaveChatError";
 import GetMyPushTokenError "../types/GetMyPushTokenError";
+import GhostAccountError "../types/GhostAccountError";
 
 actor Icychat {
 
@@ -218,6 +219,20 @@ actor Icychat {
         return #ok();
       };
     };
+  };
+
+  public shared (msg) func ghostAccount() : async Result.Result<(), GhostAccountError.GhostAccountError> {
+    switch (userToProfile.get(msg.caller)) {
+      case null {
+        return #err(#UserNotFound);
+      };
+
+      case (?a) {
+        userToPushToken.delete(msg.caller);
+      };
+    };
+
+    return #ok();
   };
 
   public shared (msg) func burnAccount() : async Result.Result<(), BurnAccountError.BurnAccountError> {
