@@ -42,8 +42,8 @@ import GhostAccountError "../types/GhostAccountError";
 
 actor Icychat {
 
-  let ONESIGNAL_APP_ID : Text = "983438ea-3272-4813-acc2-6ea134a6f05a";
-  let ONESIGNAL_REST_API_KEY : Text = "MGU0ZTdlNzktMDYxYS00OWMzLWI3ZGUtZTg2MDkxZjYyMzNm";
+  let ONESIGNAL_APP_ID : Text = "19d49feb-ac2c-494c-9f7c-d8392c73d838";
+  let ONESIGNAL_REST_API_KEY : Text = "OTc2YmMxNzMtMzZkMi00MmI2LWJhZDYtYzQ0MTI5NzlkMzM1";
 
   var allChats : Buffer.Buffer<Chat.Chat> = Buffer.Buffer(0);
   var userToPushToken : HashMap.HashMap<Principal, Text> = HashMap.HashMap(0, Principal.equal, Principal.hash);
