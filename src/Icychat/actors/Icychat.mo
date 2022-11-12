@@ -35,10 +35,10 @@ import AddToChatError "../types/AddToChatError";
 import GetPublicKeyError "../types/GetPublicKeyError";
 import GetMyChatKeyError "../types/GetMyChatKeyError";
 import HttpTypes "../types/HttpTypes";
-import SetMyPushTokenError "../types/SetMyPushTokenError";
+import AddPushTokenError "../types/AddPushTokenError";
 import LeaveChatError "../types/LeaveChatError";
-import GetMyPushTokenError "../types/GetMyPushTokenError";
 import GhostAccountError "../types/GhostAccountError";
+import RemovePushTokenError "../types/RemovePushTokenError";
 
 actor Icychat {
 
@@ -46,10 +46,22 @@ actor Icychat {
   let ONESIGNAL_REST_API_KEY : Text = "OTc2YmMxNzMtMzZkMi00MmI2LWJhZDYtYzQ0MTI5NzlkMzM1";
 
   var allChats : Buffer.Buffer<Chat.Chat> = Buffer.Buffer(0);
-  var userToPushToken : HashMap.HashMap<Principal, Text> = HashMap.HashMap(0, Principal.equal, Principal.hash);
+  var userToPushTokens : HashMap.HashMap<Principal, HashMap.HashMap<Text, Text>> = HashMap.HashMap(0, Principal.equal, Principal.hash);
   var userToPublicKey : HashMap.HashMap<Principal, Text> = HashMap.HashMap(0, Principal.equal, Principal.hash);
   var userToProfile : HashMap.HashMap<Principal, Profile.Profile> = HashMap.HashMap(0, Principal.equal, Principal.hash);
   var userToChats : HashMap.HashMap<Principal, Buffer.Buffer<Chat.Chat>> = HashMap.HashMap(0, Principal.equal, Principal.hash);
+
+  public shared query (msg) func isRegistered() : async Bool {
+    switch (userToPushTokens.get(msg.caller)) {
+      case null {
+        return false;
+      };
+
+      case (?value) {
+        return true;
+      }
+    };
+  };
 
   public shared query (msg) func getUsers(searchQuery : Text) : async Result.Result<[Principal], GetUsersError.GetUsersError> {
     let chats : ?Buffer.Buffer<Chat.Chat> = userToChats.get(msg.caller);
@@ -163,36 +175,32 @@ actor Icychat {
     };
   };
 
-  public shared query (msg) func getMyPushToken() : async Result.Result<Text, GetMyPushTokenError.GetMyPushTokenError> {
-    let value : ?Profile.Profile = userToProfile.get(msg.caller);
-    switch (value) {
-      case null {
-        return #err(#UserNotFound);
-      };
-
-      case (?profile) {
-        switch (userToPushToken.get(msg.caller)) {
-          case null {
-            return #ok("");
-          };
-
-          case (?value) {
-            return #ok(value);
-          };
-        };
-      };
-    };
-  };
-
-  public shared (msg) func setMyPushToken(pushToken : Text) : async Result.Result<(), SetMyPushTokenError.SetMyPushTokenError> {
-    let value : ?Profile.Profile = userToProfile.get(msg.caller);
+  public shared (msg) func addPushToken(id : Text, pushToken : Text) : async Result.Result<(), AddPushTokenError.AddPushTokenError> {
+    let value : ?HashMap.HashMap<Text, Text> = userToPushTokens.get(msg.caller);
     switch (value) {
       case null {
         return #err(#UserNotFound);
       };
 
       case (?value) {
-        userToPushToken.put(msg.caller, pushToken);
+        let pushTokens : HashMap.HashMap<Text, Text> = HashMap.HashMap(0, Text.equal, Text.hash);
+        pushTokens.put(id, pushToken);
+        userToPushTokens.put(msg.caller, pushTokens);
+
+        return #ok();
+      };
+    };
+  };
+
+  public shared (msg) func removePushToken(id : Text) : async Result.Result<(), RemovePushTokenError.RemovePushTokenError> {
+    let value : ?HashMap.HashMap<Text, Text> = userToPushTokens.get(msg.caller);
+    switch (value) {
+      case null {
+        return #err(#UserNotFound);
+      };
+
+      case (?value) {
+        value.delete(id);
 
         return #ok();
       };
@@ -213,6 +221,7 @@ actor Icychat {
       case null {
         let initialProfile : Profile.Profile = Profile.getDefault(msg.caller);
         let profile : Profile.Profile = Profile.update(initialProfile, profileUpdate);
+        userToPushTokens.put(msg.caller, HashMap.HashMap<Text, Text>(0, Text.equal, Text.hash));
         userToPublicKey.put(msg.caller, publicKey);
         userToProfile.put(msg.caller, profile);
         userToChats.put(msg.caller, Buffer.Buffer<Chat.Chat>(0));
@@ -228,7 +237,7 @@ actor Icychat {
       };
 
       case (?a) {
-        userToPushToken.delete(msg.caller);
+        userToPushTokens.delete(msg.caller);
       };
     };
 
@@ -326,23 +335,6 @@ actor Icychat {
           };
 
           case (?otherChats) {
-            for (chat in myChats.vals()) {
-              if (chat.users.size() == 2) {
-                func f(p : Principal) : Bool = Principal.equal(p, otherUser);
-                if (Array.find(chat.users.toArray(), f) != null) {
-                  return #err(#ChatAlreadyExists);
-                };
-              };
-            };
-            for (chat in otherChats.vals()) {
-              if (chat.users.size() == 2) {
-                func f(p : Principal) : Bool = Principal.equal(p, msg.caller);
-                if (Array.find(chat.users.toArray(), f) != null) {
-                  return #err(#ChatAlreadyExists);
-                };
-              };
-            };
-
             let seed : Blob = await Random.blob();
             let chat : Chat.Chat = Chat.construct(seed, msg.caller, otherUser, myKey, otherUserKey);
 
@@ -514,11 +506,14 @@ actor Icychat {
 
             let includePlayerIds : Buffer.Buffer<JSON.JSON> = Buffer.Buffer(0);
             for (user in withoutCaller.vals()) {
-              switch (userToPushToken.get(user)) {
+              switch (userToPushTokens.get(user)) {
                 case null {};
 
                 case (?value) {
-                  includePlayerIds.add(#String(value));
+                  for (pushToken in value.vals()) {
+                    includePlayerIds.add(#String(pushToken));
+                  };
+
                 };
               };
             };
