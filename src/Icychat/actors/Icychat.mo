@@ -39,20 +39,22 @@ import AddPushTokenError "../types/AddPushTokenError";
 import LeaveChatError "../types/LeaveChatError";
 import GhostAccountError "../types/GhostAccountError";
 import RemovePushTokenError "../types/RemovePushTokenError";
+import StableBuffer "../types/StableBuffer";
+import StableHashMap "../types/FunctionalStableHashMap";
 
 actor Icychat {
 
   let ONESIGNAL_APP_ID : Text = "19d49feb-ac2c-494c-9f7c-d8392c73d838";
   let ONESIGNAL_REST_API_KEY : Text = "OTc2YmMxNzMtMzZkMi00MmI2LWJhZDYtYzQ0MTI5NzlkMzM1";
 
-  var allChats : Buffer.Buffer<Chat.Chat> = Buffer.Buffer(0);
-  var userToPushTokens : HashMap.HashMap<Principal, HashMap.HashMap<Text, Text>> = HashMap.HashMap(0, Principal.equal, Principal.hash);
-  var userToPublicKey : HashMap.HashMap<Principal, Text> = HashMap.HashMap(0, Principal.equal, Principal.hash);
-  var userToProfile : HashMap.HashMap<Principal, Profile.Profile> = HashMap.HashMap(0, Principal.equal, Principal.hash);
-  var userToChats : HashMap.HashMap<Principal, Buffer.Buffer<Chat.Chat>> = HashMap.HashMap(0, Principal.equal, Principal.hash);
+  stable var allChats : StableBuffer.StableBuffer<Chat.Chat> = StableBuffer.init<Chat.Chat>();
+  stable var userToPushTokens : StableHashMap.StableHashMap<Principal, StableHashMap.StableHashMap<Text, Text>> = StableHashMap.init<Principal, StableHashMap.StableHashMap<Text, Text>>();
+  stable var userToPublicKey : StableHashMap.StableHashMap<Principal, Text> = StableHashMap.init<Principal, Text>();
+  stable var userToProfile : StableHashMap.StableHashMap<Principal, Profile.Profile> = StableHashMap.init<Principal, Profile.Profile>();
+  stable var userToChats : StableHashMap.StableHashMap<Principal, StableBuffer.StableBuffer<Chat.Chat>> = StableHashMap.init<Principal, StableBuffer.StableBuffer<Chat.Chat>>();
 
   public shared query (msg) func isRegistered() : async Bool {
-    switch (userToPushTokens.get(msg.caller)) {
+    switch (StableHashMap.get(userToPushTokens, Principal.equal, Principal.hash, msg.caller)) {
       case null {
         return false;
       };
@@ -64,7 +66,7 @@ actor Icychat {
   };
 
   public shared query (msg) func getUsers(searchQuery : Text) : async Result.Result<[Principal], GetUsersError.GetUsersError> {
-    let chats : ?Buffer.Buffer<Chat.Chat> = userToChats.get(msg.caller);
+    let chats : ?StableBuffer.StableBuffer<Chat.Chat> = StableHashMap.get(userToChats, Principal.equal, Principal.hash, msg.caller);
     switch (chats) {
       case (?chats) {
 
@@ -72,13 +74,13 @@ actor Icychat {
           return #ok([]);
         };
 
-        let allUsers : [Principal] = Iter.toArray(userToProfile.keys());
+        let allUsers : [Principal] = Iter.toArray(StableHashMap.keys(userToProfile));
 
         func f1(p : Principal) : Bool = not Principal.equal(p, msg.caller);
         let withoutCaller : [Principal] = Array.filter(allUsers, f1);
 
         let searchPattern : Text.Pattern = #text(searchQuery);
-        func f2(p : Principal) : Bool = switch (userToProfile.get(p)) {
+        func f2(p : Principal) : Bool = switch (StableHashMap.get(userToProfile, Principal.equal, Principal.hash, p)) {
           case null {
             return false;
           };
@@ -102,7 +104,7 @@ actor Icychat {
   };
 
   public shared query func getPublicKey(userPrincipal : Principal) : async Result.Result<Text, GetPublicKeyError.GetPublicKeyError> {
-    let value : ?Text.Text = userToPublicKey.get(userPrincipal);
+    let value : ?Text.Text = StableHashMap.get(userToPublicKey, Principal.equal, Principal.hash, userPrincipal);
     switch (value) {
       case null {
         return #err(#UserNotFound);
@@ -115,7 +117,7 @@ actor Icychat {
   };
 
   public shared query func getProfile(userPrincipal : Principal) : async Result.Result<Profile.Profile, GetProfileError.GetProfileError> {
-    let value : ?Profile.Profile = userToProfile.get(userPrincipal);
+    let value : ?Profile.Profile = StableHashMap.get(userToProfile, Principal.equal, Principal.hash, userPrincipal);
     switch (value) {
       case null {
         return #err(#UserNotFound);
@@ -128,7 +130,7 @@ actor Icychat {
   };
 
   public shared query (msg) func getMyProfile() : async Result.Result<Profile.Profile, GetMyProfileError.GetMyProfileError> {
-    let value : ?Profile.Profile = userToProfile.get(msg.caller);
+    let value : ?Profile.Profile = StableHashMap.get(userToProfile, Principal.equal, Principal.hash, msg.caller);
     switch (value) {
       case null {
         return #err(#UserNotFound);
@@ -141,7 +143,7 @@ actor Icychat {
   };
 
   public shared query (msg) func getMyChatHeaders() : async Result.Result<[ChatHeader.ChatHeader], GetMyChatHeadersError.GetMyChatHeadersError> {
-    let value : ?Buffer.Buffer<Chat.Chat> = userToChats.get(msg.caller);
+    let value : ?StableBuffer.StableBuffer<Chat.Chat> = StableHashMap.get(userToChats, Principal.equal, Principal.hash, msg.caller);
     switch (value) {
       case null {
         return #err(#UserNotFound);
@@ -149,7 +151,7 @@ actor Icychat {
 
       case (?value) {
         let temp : Buffer.Buffer<ChatHeader.ChatHeader> = Buffer.Buffer<ChatHeader.ChatHeader>(0);
-        for (chat in value.vals()) {
+        for (chat in StableBuffer.vals(value)) {
           temp.add(ChatHeader.construct(msg.caller, chat));
         };
         return #ok(temp.toArray());
@@ -158,14 +160,14 @@ actor Icychat {
   };
 
   public shared query (msg) func getMyChat(id : Nat) : async Result.Result<SharedChat.SharedChat, GetMyChatError.GetMyChatError> {
-    let value : ?Buffer.Buffer<Chat.Chat> = userToChats.get(msg.caller);
+    let value : ?StableBuffer.StableBuffer<Chat.Chat> = StableHashMap.get(userToChats, Principal.equal, Principal.hash, msg.caller);
     switch (value) {
       case null {
         return #err(#UserNotFound);
       };
 
       case (?value) {
-        for (chat in value.vals()) {
+        for (chat in StableBuffer.vals(value)) {
           if (chat.id == id) {
             return #ok(SharedChat.construct(msg.caller, chat));
           };
@@ -176,16 +178,16 @@ actor Icychat {
   };
 
   public shared (msg) func addPushToken(id : Text, pushToken : Text) : async Result.Result<(), AddPushTokenError.AddPushTokenError> {
-    let value : ?HashMap.HashMap<Text, Text> = userToPushTokens.get(msg.caller);
+    let value : ?StableHashMap.StableHashMap<Text, Text> = StableHashMap.get(userToPushTokens, Principal.equal, Principal.hash, msg.caller);
     switch (value) {
       case null {
         return #err(#UserNotFound);
       };
 
       case (?value) {
-        let pushTokens : HashMap.HashMap<Text, Text> = HashMap.HashMap(0, Text.equal, Text.hash);
-        pushTokens.put(id, pushToken);
-        userToPushTokens.put(msg.caller, pushTokens);
+        let pushTokens : StableHashMap.StableHashMap<Text, Text> = StableHashMap.init<Text, Text>();
+        StableHashMap.put(pushTokens, Text.equal, Text.hash, id, pushToken);
+        StableHashMap.put(userToPushTokens, Principal.equal, Principal.hash, msg.caller, pushTokens);
 
         return #ok();
       };
@@ -193,14 +195,14 @@ actor Icychat {
   };
 
   public shared (msg) func removePushToken(id : Text) : async Result.Result<(), RemovePushTokenError.RemovePushTokenError> {
-    let value : ?HashMap.HashMap<Text, Text> = userToPushTokens.get(msg.caller);
+    let value : ?StableHashMap.StableHashMap<Text, Text> = StableHashMap.get(userToPushTokens, Principal.equal, Principal.hash, msg.caller);
     switch (value) {
       case null {
         return #err(#UserNotFound);
       };
 
       case (?value) {
-        value.delete(id);
+        StableHashMap.delete(value, Text.equal, Text.hash, id);
 
         return #ok();
       };
@@ -212,7 +214,7 @@ actor Icychat {
       return #err(#InvalidProfile);
     };
 
-    let value : ?Profile.Profile = userToProfile.get(msg.caller);
+    let value : ?Profile.Profile = StableHashMap.get(userToProfile, Principal.equal, Principal.hash, msg.caller);
     switch (value) {
       case (?value) {
         return #err(#AlreadyRegistered);
@@ -221,23 +223,23 @@ actor Icychat {
       case null {
         let initialProfile : Profile.Profile = Profile.getDefault(msg.caller);
         let profile : Profile.Profile = Profile.update(initialProfile, profileUpdate);
-        userToPushTokens.put(msg.caller, HashMap.HashMap<Text, Text>(0, Text.equal, Text.hash));
-        userToPublicKey.put(msg.caller, publicKey);
-        userToProfile.put(msg.caller, profile);
-        userToChats.put(msg.caller, Buffer.Buffer<Chat.Chat>(0));
+        StableHashMap.put(userToPushTokens, Principal.equal, Principal.hash, msg.caller, StableHashMap.init<Text, Text>());
+        StableHashMap.put(userToPublicKey, Principal.equal, Principal.hash, msg.caller, publicKey);
+        StableHashMap.put(userToProfile, Principal.equal, Principal.hash, msg.caller, profile);
+        StableHashMap.put(userToChats, Principal.equal, Principal.hash, msg.caller, StableBuffer.init<Chat.Chat>());
         return #ok();
       };
     };
   };
 
   public shared (msg) func ghostAccount() : async Result.Result<(), GhostAccountError.GhostAccountError> {
-    switch (userToProfile.get(msg.caller)) {
+    switch (StableHashMap.get(userToProfile, Principal.equal, Principal.hash, msg.caller)) {
       case null {
         return #err(#UserNotFound);
       };
 
       case (?a) {
-        userToPushTokens.delete(msg.caller);
+        StableHashMap.delete(userToPushTokens, Principal.equal, Principal.hash, msg.caller);
       };
     };
 
@@ -245,67 +247,67 @@ actor Icychat {
   };
 
   public shared (msg) func burnAccount() : async Result.Result<(), BurnAccountError.BurnAccountError> {
-    switch (userToProfile.get(msg.caller)) {
+    switch (StableHashMap.get(userToProfile, Principal.equal, Principal.hash, msg.caller)) {
       case null {
         return #err(#UserNotFound);
       };
 
       case (?a) {
-        userToPublicKey.delete(msg.caller);
-        userToPublicKey.delete(msg.caller);
-        userToProfile.delete(msg.caller);
+        StableHashMap.delete(userToPublicKey, Principal.equal, Principal.hash, msg.caller);
+        StableHashMap.delete(userToPublicKey, Principal.equal, Principal.hash, msg.caller);
+        StableHashMap.delete(userToProfile, Principal.equal, Principal.hash, msg.caller);
 
-        switch (userToChats.get(msg.caller)) {
+        switch (StableHashMap.get(userToChats, Principal.equal, Principal.hash, msg.caller)) {
           case null {
             return #err(#UserNotFound);
           };
 
           case (?chats) {
-            for (chat in chats.vals()) {
-              chat.keys.delete(msg.caller);
-              if (chat.users.size() > 2) {
-                let newUsers : Buffer.Buffer<Principal> = Buffer.Buffer(0);
-                for (user in chat.users.vals()) {
+            for (chat in StableBuffer.vals(chats)) {
+              StableHashMap.delete(chat.keys, Principal.equal, Principal.hash, msg.caller);
+              if (StableBuffer.size(chat.users) > 2) {
+                let newUsers : StableBuffer.StableBuffer<Principal> = StableBuffer.init<Principal>();
+                for (user in StableBuffer.vals(chat.users)) {
                   if (user != msg.caller) {
-                    newUsers.add(user);
+                    StableBuffer.add(newUsers, user);
                   };
                 };
-                chat.users.clear();
-                chat.users.append(newUsers);
+                StableBuffer.clear(chat.users);
+                StableBuffer.append(chat.users, newUsers);
               } else {
-                if (chat.users.get(0) == msg.caller) {
-                  switch (userToChats.get(chat.users.get(1))) {
+                if (StableBuffer.get(chat.users, 0) == msg.caller) {
+                  switch (StableHashMap.get(userToChats, Principal.equal, Principal.hash, StableBuffer.get(chat.users, 1))) {
                     case null {
                       return #err(#UserNotFound);
                     };
 
                     case (?otherChats) {
-                      let newChats : Buffer.Buffer<Chat.Chat> = Buffer.Buffer(0);
-                      for (otherChat in otherChats.vals()) {
+                      let newChats : StableBuffer.StableBuffer<Chat.Chat> = StableBuffer.init<Chat.Chat>();
+                      for (otherChat in StableBuffer.vals(otherChats)) {
                         if (otherChat.id != chat.id) {
-                          newChats.add(otherChat);
+                          StableBuffer.add(newChats, otherChat);
                         };
                       };
-                      otherChats.clear();
-                      otherChats.append(newChats);
+                      StableBuffer.clear(otherChats);
+                      StableBuffer.append(otherChats, newChats);
                     };
                   };
 
                 } else {
-                  switch (userToChats.get(chat.users.get(0))) {
+                  switch (StableHashMap.get(userToChats, Principal.equal, Principal.hash, StableBuffer.get(chat.users, 0))) {
                     case null {
                       return #err(#UserNotFound);
                     };
 
                     case (?otherChats) {
-                      let newChats : Buffer.Buffer<Chat.Chat> = Buffer.Buffer(0);
-                      for (otherChat in otherChats.vals()) {
+                      let newChats : StableBuffer.StableBuffer<Chat.Chat> = StableBuffer.init<Chat.Chat>();
+                      for (otherChat in StableBuffer.vals(otherChats)) {
                         if (otherChat.id != chat.id) {
-                          newChats.add(otherChat);
+                          StableBuffer.add(newChats, otherChat);
                         };
                       };
-                      otherChats.clear();
-                      otherChats.append(newChats);
+                      StableBuffer.clear(otherChats);
+                      StableBuffer.append(otherChats, newChats);
                     };
                   };
                 };
@@ -315,20 +317,20 @@ actor Icychat {
         };
       };
     };
-    userToChats.delete(msg.caller);
+    StableHashMap.delete(userToChats, Principal.equal, Principal.hash, msg.caller);
 
     return #ok();
   };
 
   public shared (msg) func createChat(otherUser : Principal, myKey : Text, otherUserKey : Text) : async Result.Result<(), CreateChatError.CreateChatError> {
-    let myChats : ?Buffer.Buffer<Chat.Chat> = userToChats.get(msg.caller);
+    let myChats : ?StableBuffer.StableBuffer<Chat.Chat> = StableHashMap.get(userToChats, Principal.equal, Principal.hash, msg.caller);
     switch (myChats) {
       case null {
         return #err(#UserNotFound);
       };
 
       case (?myChats) {
-        let otherChats : ?Buffer.Buffer<Chat.Chat> = userToChats.get(otherUser);
+        let otherChats : ?StableBuffer.StableBuffer<Chat.Chat> = StableHashMap.get(userToChats, Principal.equal, Principal.hash, otherUser);
         switch (otherChats) {
           case null {
             return #err(#UserNotFound);
@@ -338,10 +340,10 @@ actor Icychat {
             let seed : Blob = await Random.blob();
             let chat : Chat.Chat = Chat.construct(seed, msg.caller, otherUser, myKey, otherUserKey);
 
-            allChats.add(chat);
+            StableBuffer.add(allChats, chat);
 
-            myChats.add(chat);
-            otherChats.add(chat);
+            StableBuffer.add(myChats, chat);
+            StableBuffer.add(otherChats, chat);
 
             return #ok();
           };
@@ -351,72 +353,72 @@ actor Icychat {
   };
 
   public shared (msg) func leaveChat(id : Nat) : async Result.Result<(), LeaveChatError.LeaveChatError> {
-    switch (userToChats.get(msg.caller)) {
+    switch (StableHashMap.get(userToChats, Principal.equal, Principal.hash, msg.caller)) {
       case null {
         return #err(#UserNotFound);
       };
 
       case (?chats) {
-        for (chat in chats.vals()) {
+        for (chat in StableBuffer.vals(chats)) {
           if (chat.id == id) {
-            if (chat.users.size() > 2) {
-              chat.keys.delete(msg.caller);
+            if (StableBuffer.size(chat.users) > 2) {
+              StableHashMap.delete(chat.keys, Principal.equal, Principal.hash, msg.caller);
 
-              let newUsers : Buffer.Buffer<Principal> = Buffer.Buffer(0);
-              for (user in chat.users.vals()) {
+              let newUsers : StableBuffer.StableBuffer<Principal> = StableBuffer.init<Principal>();
+              for (user in StableBuffer.vals(chat.users)) {
                 if (user != msg.caller) {
-                  newUsers.add(user);
+                  StableBuffer.add(newUsers, user);
                 };
               };
-              chat.users.clear();
-              chat.users.append(newUsers);
+              StableBuffer.clear(chat.users);
+              StableBuffer.append(chat.users, newUsers);
             } else {
-              if (chat.users.get(0) == msg.caller) {
-                switch (userToChats.get(chat.users.get(1))) {
+              if (StableBuffer.get(chat.users, 0) == msg.caller) {
+                switch (StableHashMap.get(userToChats, Principal.equal, Principal.hash, StableBuffer.get(chat.users, 1))) {
                   case null {
                     return #err(#UserNotFound);
                   };
 
                   case (?otherChats) {
-                    let otherNewChats : Buffer.Buffer<Chat.Chat> = Buffer.Buffer(0);
-                    for (chat in otherChats.vals()) {
+                    let otherNewChats : StableBuffer.StableBuffer<Chat.Chat> = StableBuffer.init<Chat.Chat>();
+                    for (chat in StableBuffer.vals(otherChats)) {
                       if (chat.id != id) {
-                        otherNewChats.add(chat);
+                        StableBuffer.add(otherNewChats, chat);
                       };
                     };
-                    otherChats.clear();
-                    otherChats.append(otherNewChats);
+                    StableBuffer.clear(otherChats);
+                    StableBuffer.append(otherChats, otherNewChats);
                   };
                 };
               } else {
-                switch (userToChats.get(chat.users.get(0))) {
+                switch (StableHashMap.get(userToChats, Principal.equal, Principal.hash, StableBuffer.get(chat.users, 0))) {
                   case null {
                     return #err(#UserNotFound);
                   };
 
                   case (?otherChats) {
-                    let otherNewChats : Buffer.Buffer<Chat.Chat> = Buffer.Buffer(0);
-                    for (chat in otherChats.vals()) {
+                    let otherNewChats : StableBuffer.StableBuffer<Chat.Chat> = StableBuffer.init();
+                    for (chat in StableBuffer.vals(otherChats)) {
                       if (chat.id != id) {
-                        otherNewChats.add(chat);
+                        StableBuffer.add(otherNewChats, chat);
                       };
                     };
-                    otherChats.clear();
-                    otherChats.append(otherNewChats);
+                    StableBuffer.clear(otherChats);
+                    StableBuffer.append(otherChats, otherNewChats);
                   };
                 };
               };
             };
           };
 
-          let myNewChats : Buffer.Buffer<Chat.Chat> = Buffer.Buffer(0);
-          for (chat in chats.vals()) {
+          let myNewChats : StableBuffer.StableBuffer<Chat.Chat> = StableBuffer.init<Chat.Chat>();
+          for (chat in StableBuffer.vals(chats)) {
             if (chat.id != id) {
-              myNewChats.add(chat);
+              StableBuffer.add(myNewChats, chat);
             };
           };
-          chats.clear();
-          chats.append(myNewChats);
+          StableBuffer.clear(chats);
+          StableBuffer.append(chats, myNewChats);
 
           return #ok();
         };
@@ -426,14 +428,14 @@ actor Icychat {
   };
 
   public shared (msg) func addToChat(id : Nat, otherUser : Principal, otherUserKey : Text) : async Result.Result<(), AddToChatError.AddToChatError> {
-    let myChats : ?Buffer.Buffer<Chat.Chat> = userToChats.get(msg.caller);
+    let myChats : ?StableBuffer.StableBuffer<Chat.Chat> = StableHashMap.get(userToChats, Principal.equal, Principal.hash, msg.caller);
     switch (myChats) {
       case null {
         return #err(#UserNotFound);
       };
 
       case (?myChats) {
-        let otherChats : ?Buffer.Buffer<Chat.Chat> = userToChats.get(otherUser);
+        let otherChats : ?StableBuffer.StableBuffer<Chat.Chat> = StableHashMap.get(userToChats, Principal.equal, Principal.hash, otherUser);
         switch (otherChats) {
           case null {
             return #err(#UserNotFound);
@@ -441,17 +443,17 @@ actor Icychat {
 
           case (?otherChats) {
 
-            for (myCurrentChat in myChats.vals()) {
+            for (myCurrentChat in StableBuffer.vals(myChats)) {
               if (myCurrentChat.id == id) {
 
                 func f(p : Principal) : Bool = Principal.equal(p, otherUser);
-                if (Array.find(myCurrentChat.users.toArray(), f) != null) {
+                if (Array.find(StableBuffer.toArray(myCurrentChat.users), f) != null) {
                   return #err(#UserAlreadyInChat);
                 };
 
-                myCurrentChat.keys.put(otherUser, otherUserKey);
-                myCurrentChat.users.add(otherUser);
-                otherChats.add(myCurrentChat);
+                StableHashMap.put(myCurrentChat.keys, Principal.equal, Principal.hash, otherUser, otherUserKey);
+                StableBuffer.add(myCurrentChat.users, otherUser);
+                StableBuffer.add(otherChats, myCurrentChat);
 
                 return #ok();
               };
@@ -464,21 +466,21 @@ actor Icychat {
   };
 
   public shared (msg) func sendMessage(id : Nat, content : MessageContent.MessageContent) : async Result.Result<SharedChat.SharedChat, SendMessageError.SendMessageError> {
-    let myChats : ?Buffer.Buffer<Chat.Chat> = userToChats.get(msg.caller);
+    let myChats : ?StableBuffer.StableBuffer<Chat.Chat> = StableHashMap.get(userToChats, Principal.equal, Principal.hash, msg.caller);
     switch (myChats) {
       case null {
         return #err(#UserNotFound);
       };
 
       case (?myChats) {
-        for (myCurrentChat in myChats.vals()) {
+        for (myCurrentChat in StableBuffer.vals(myChats)) {
           if (myCurrentChat.id == id) {
             let seed : Blob = await Random.blob();
             let message : Message.Message = Message.construct(seed, msg.caller, content);
 
-            myCurrentChat.messages.add(message);
+            StableBuffer.add(myCurrentChat.messages, message);
 
-            func f1(idx : Nat) : Text = switch (userToProfile.get(myCurrentChat.users.toArray()[idx])) {
+            func f1(idx : Nat) : Text = switch (StableHashMap.get(userToProfile, Principal.equal, Principal.hash, StableBuffer.toArray(myCurrentChat.users)[idx])) {
               case null {
                 return "";
               };
@@ -487,9 +489,9 @@ actor Icychat {
                 return value.username;
               };
             };
-            var usernames : [Text] = Array.tabulate(Iter.size(myCurrentChat.users.toArray().vals()), f1);
-            if (myCurrentChat.users.size() == 2) {
-              switch (userToProfile.get(msg.caller)) {
+            var usernames : [Text] = Array.tabulate(Iter.size(StableBuffer.toArray(myCurrentChat.users).vals()), f1);
+            if (StableBuffer.size(myCurrentChat.users) == 2) {
+              switch (StableHashMap.get(userToProfile, Principal.equal, Principal.hash, msg.caller)) {
                 case null {
                   return #err(#UserNotFound);
                 };
@@ -502,15 +504,15 @@ actor Icychat {
             let title : Text = Text.join(", ", usernames.vals());
 
             func f2(p : Principal) : Bool = not Principal.equal(p, msg.caller);
-            let withoutCaller : [Principal] = Array.filter(myCurrentChat.users.toArray(), f2);
+            let withoutCaller : [Principal] = Array.filter(StableBuffer.toArray(myCurrentChat.users), f2);
 
             let includePlayerIds : Buffer.Buffer<JSON.JSON> = Buffer.Buffer(0);
             for (user in withoutCaller.vals()) {
-              switch (userToPushTokens.get(user)) {
+              switch (StableHashMap.get(userToPushTokens, Principal.equal, Principal.hash, user)) {
                 case null {};
 
                 case (?value) {
-                  for (pushToken in value.vals()) {
+                  for (pushToken in StableHashMap.vals(value)) {
                     includePlayerIds.add(#String(pushToken));
                   };
 

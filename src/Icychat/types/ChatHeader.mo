@@ -4,6 +4,8 @@ import Principal "mo:base/Principal";
 
 import Chat "Chat";
 import Message "Message";
+import StableBuffer "StableBuffer";
+import StableHashMap "FunctionalStableHashMap";
 
 module {
   public type ChatHeader = {
@@ -15,14 +17,14 @@ module {
 
   public func construct(callerPrincipal : Principal, chat0 : Chat.Chat) : ChatHeader {
     func f(p : Principal) : Bool = not Principal.equal(p, callerPrincipal);
-    if (chat0.messages.size() > 0) {
-      switch (chat0.keys.get(callerPrincipal)) {
+    if (StableBuffer.size(chat0.messages) > 0) {
+      switch (StableHashMap.get(chat0.keys, Principal.equal, Principal.hash, callerPrincipal)) {
         case null {
           return {
             id = chat0.id;
             key = "";
-            otherUsers = Array.filter(chat0.users.toArray(), f);
-            lastMessage = ?chat0.messages.get(chat0.messages.size() - 1);
+            otherUsers = Array.filter(StableBuffer.toArray(chat0.users), f);
+            lastMessage = ?StableBuffer.get(chat0.messages, StableBuffer.size(chat0.messages) - 1);
           };
         };
 
@@ -30,18 +32,18 @@ module {
           return {
             id = chat0.id;
             key = value;
-            otherUsers = Array.filter(chat0.users.toArray(), f);
-            lastMessage = ?chat0.messages.get(chat0.messages.size() - 1);
+            otherUsers = Array.filter(StableBuffer.toArray(chat0.users), f);
+            lastMessage = ?StableBuffer.get(chat0.messages, StableBuffer.size(chat0.messages) - 1);
           };
         };
       };
     } else {
-      switch (chat0.keys.get(callerPrincipal)) {
+      switch (StableHashMap.get(chat0.keys, Principal.equal, Principal.hash, callerPrincipal)) {
         case null {
           return {
             id = chat0.id;
             key = "";
-            otherUsers = Array.filter(chat0.users.toArray(), f);
+            otherUsers = Array.filter(StableBuffer.toArray(chat0.users), f);
             lastMessage = null;
           };
         };
@@ -50,7 +52,7 @@ module {
           return {
             id = chat0.id;
             key = value;
-            otherUsers = Array.filter(chat0.users.toArray(), f);
+            otherUsers = Array.filter(StableBuffer.toArray(chat0.users), f);
             lastMessage = null;
           };
         };
