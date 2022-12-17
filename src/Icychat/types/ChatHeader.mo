@@ -24,7 +24,7 @@ module {
             id = chat0.id;
             key = "";
             otherUsers = Array.filter(StableBuffer.toArray(chat0.users), f);
-            lastMessage = ?StableBuffer.get(chat0.messages, StableBuffer.size(chat0.messages) - 1);
+            lastMessage = ?StableBuffer.back(chat0.messages);
           };
         };
 
@@ -33,7 +33,7 @@ module {
             id = chat0.id;
             key = value;
             otherUsers = Array.filter(StableBuffer.toArray(chat0.users), f);
-            lastMessage = ?StableBuffer.get(chat0.messages, StableBuffer.size(chat0.messages) - 1);
+            lastMessage = ?StableBuffer.back(chat0.messages);
           };
         };
       };

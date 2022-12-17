@@ -48,7 +48,7 @@ module {
         if (buffer.count == 0) {
           if (buffer.initCapacity > 0) { buffer.initCapacity } else { 1 }
         } else {
-          2 * buffer.elems.size()
+          3 * buffer.elems.size() / 2;
         };
       let elems2 = Prim.Array_init<X>(size, elem);
       var i = 0;
@@ -147,6 +147,18 @@ module {
       };
       a
     }
+  };
+
+  /// Gets the first element of this buffer. Traps if  `size == 0`
+  public func front<X>(buffer: StableBuffer<X>) : X {
+    assert(size(buffer) > 0);
+    buffer.elems[0]
+  };
+
+  /// Gets the last element of this buffer. Traps if  `size == 0`
+  public func back<X>(buffer: StableBuffer<X>) : X {
+    assert(size(buffer) > 0);
+    buffer.elems[size(buffer) - 1];
   };
 
   /// Gets the `i`-th element of this buffer. Traps if  `i >= count`. Indexing is zero-based.
