@@ -15,6 +15,8 @@ import AsyncSource "mo:uuid/async/SourceV4";
 import XorShift "mo:rand/XorShift";
 import Cycles "mo:base/ExperimentalCycles";
 
+import AssetMap "AssetMap";
+
 import RegisterError "../types/RegisterError";
 import BurnAccountError "../types/BurnAccountError";
 import ProfileUpdate "../types/ProfileUpdate";
@@ -221,7 +223,11 @@ actor Icychat {
       };
 
       case null {
-        let initialProfile : Profile.Profile = Profile.getDefault(msg.caller);
+        Cycles.add(500000000000); //TODO set appropriate amount of cycles
+        let newAssetMap : AssetMap.AssetMap = await AssetMap.AssetMap(msg.caller);
+        let newPortalPrincipal : Principal = Principal.fromActor(newAssetMap);
+
+        let initialProfile : Profile.Profile = Profile.getDefault(msg.caller, newAssetMap);
         let profile : Profile.Profile = Profile.update(initialProfile, profileUpdate);
         StableHashMap.put(userToPushTokens, Principal.equal, Principal.hash, msg.caller, StableHashMap.init<Text, Text>());
         StableHashMap.put(userToPublicKey, Principal.equal, Principal.hash, msg.caller, publicKey);
